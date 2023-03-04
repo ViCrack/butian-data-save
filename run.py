@@ -80,7 +80,8 @@ def main():
             time.sleep(1)
             if '详情隐藏' in html:
                 print('已经被隐藏了')
-                break
+                # 直接结束就行，因为按时间来算，后面的都是隐藏
+                return
 
             print(file_path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
