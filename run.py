@@ -75,7 +75,7 @@ def main():
             if file_path.exists():
                 html = file_path.read_text(encoding='utf-8')
                 if '<p>补天审核中</p>' not in html and '</html>' in html:
-                    # 已经处理保存过了，不需要重复运行
+                # 已经处理保存过了，不需要重复运行
                     break
             loo_url = f'https://www.butian.net/Loo/detail/{number}.html'
             html = req.get(loo_url).text
@@ -95,9 +95,7 @@ def main():
             pageDetail.find('.loopEdit').remove()
             pageDetail.find('.prompt').remove()
             pageDetail.find('.liuyanShuru').remove()
-            detail = pageDetail.find('#detail')
-            detail.html(detail.text())
-            pageDetail_content = re.sub(r'<em class="(.*?)"/>', r'<em class="\1"></em>', str(pageDetail)).replace('&#13;', '\n')
+            pageDetail_content = re.sub(r'<em class="(.*?)"/>', r'<em class="\1"></em>', str(pageDetail))
             # 也许应该把图片下载下来，谁知道会不会把这也屏蔽了
             with file_path.open(mode='w', encoding='utf-8') as f:
                 f.write('''
@@ -115,6 +113,8 @@ def main():
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/loopSetting.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/ele.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/ele-common.css">
+    <script type="text/javascript" src="https://www.butian.net/Public/js/jquery.min.js"></script>
+    <script type="text/javascript" src="https://www.butian.net/Public/js/plugins.js"></script>
     <style>
         .loginSeting p {
             clear: both;
@@ -133,13 +133,19 @@ def main():
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/loop.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/plugins.css">
 </head>
-
 <body class="lotteryWrap">
                 ''')
 
                 f.write(pageDetail_content)
                 f.write('''
 </body>
+<script type="text/javascript">
+  $(function () {
+    //漏洞详情解析
+    var str_detail = $('#detail').html() || '';
+    $('#detail').html(tools.toHtml(str_detail));
+    });
+</script>
 </html>
                 ''')
 
