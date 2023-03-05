@@ -64,6 +64,7 @@ def main():
             print(f'出错啦，{current_page} {loo_list}')
             break
 
+        current_page += 1
         total_page = int((loo_list['data']['count'] - 1) / 10 + 1)
 
         for loo in loo_list['data']['list']:
@@ -73,11 +74,12 @@ def main():
             file_path = Path(f'{save_path}/{create_date}/{number} {title}.html')
             if file_path.exists():
                 html = file_path.read_text(encoding='utf-8')
-                if '<p>补天审核中</p>' not in html:
+                if '<p>补天审核中</p>' not in html and '</html>' in html:
                     # 已经处理保存过了，不需要重复运行
                     break
-            html = req.get(f'https://www.butian.net/Loo/detail/{number}.html').text
-            time.sleep(1)
+            loo_url = f'https://www.butian.net/Loo/detail/{number}.html'
+            html = req.get(loo_url).text
+            time.sleep(0.5)
             if '详情隐藏' in html:
                 print('已经被隐藏了')
                 # 直接结束就行，因为按时间来算，后面的都是隐藏
@@ -89,12 +91,13 @@ def main():
             # 精简内容，节省磁盘空间，大概能看就能行，又不是不能看
             doc = PyQuery(html)
             pageDetail = doc('#pageDetail')
+            pageDetail.find('.loopDetTitle').find('span').attr('onclick', f'window.open("{loo_url}")')
             pageDetail.find('.loopEdit').remove()
             pageDetail.find('.prompt').remove()
             pageDetail.find('.liuyanShuru').remove()
             detail = pageDetail.find('#detail')
             detail.html(detail.text())
-
+            pageDetail_content = re.sub(r'<em class="(.*?)"/>', r'<em class="\1"></em>', str(pageDetail)).replace('&#13;', '\n')
             # 也许应该把图片下载下来，谁知道会不会把这也屏蔽了
             with file_path.open(mode='w', encoding='utf-8') as f:
                 f.write('''
@@ -112,14 +115,6 @@ def main():
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/loopSetting.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/ele.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/ele-common.css">
-    <script language="JavaScript">
-        // <!--
-        //var URL = '/Home/Loo';
-        var APP = '';
-        var PUBLIC = '/Public';
-        var TPML = '/Public/admin/';
-        //-->
-    </script>
     <style>
         .loginSeting p {
             clear: both;
@@ -135,20 +130,18 @@ def main():
             top: 22px;
         }
     </style>
-    <link rel="stylesheet" type="text/css" href="/Public/css/loop.css">
-<link rel="stylesheet" type="text/css" href="/Public/css/plugins.css">
+    <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/loop.css">
+    <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/plugins.css">
 </head>
 
 <body class="lotteryWrap">
                 ''')
 
-                f.write(pageDetail.html())
+                f.write(pageDetail_content)
                 f.write('''
-   </body>
+</body>
 </html>
                 ''')
-
-        current_page += 1
 
     print('运行结束')
 
