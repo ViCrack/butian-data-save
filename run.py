@@ -75,15 +75,18 @@ def main():
             if file_path.exists():
                 html = file_path.read_text(encoding='utf-8')
                 if '<p>补天审核中</p>' not in html and '</html>' in html:
-                # 已经处理保存过了，不需要重复运行
+                    # 已经处理保存过了，不需要重复运行
                     break
             loo_url = f'https://www.butian.net/Loo/detail/{number}.html'
             html = req.get(loo_url).text
-            time.sleep(0.5)
             if '详情隐藏' in html:
                 print('已经被隐藏了')
                 # 直接结束就行，因为按时间来算，后面的都是隐藏
                 return
+            time.sleep(0.5)
+            if loo['status'] == '审核不通过':
+                # 把不通过的原因写上，免得到时候去翻
+                html = html.replace('<p>审核不通过</p>', f'<p>审核不通过({loo["assessor"]})</p>{loo["reason"]}')
 
             print(file_path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -94,7 +97,11 @@ def main():
             pageDetail.find('.loopDetTitle').find('span').attr('onclick', f'window.open("{loo_url}")')
             pageDetail.find('.loopEdit').remove()
             pageDetail.find('.prompt').remove()
-            pageDetail.find('.liuyanShuru').remove()
+            liuyan = pageDetail.find('.liuyanShuru')
+            liuyan.parent().prev().remove()
+            liuyan.parent().remove()
+            # 漏洞详情解析
+            pageDetail.find('#detail').html(pageDetail.find('#detail').html())
             pageDetail_content = re.sub(r'<em class="(.*?)"/>', r'<em class="\1"></em>', str(pageDetail))
             # 也许应该把图片下载下来，谁知道会不会把这也屏蔽了
             with file_path.open(mode='w', encoding='utf-8') as f:
@@ -108,13 +115,11 @@ def main():
     <meta name="viewport" content="width=device-width, initial-scale=0.1, maximum-scale=1.0, user-scalable=yes" />
     <meta name="renderer" content="webkit|ie-comp|ie-stand">
     <meta http-equiv="X-UA-Compatible" content="IE=edge,Chrome=1" />
-    <title>补天-漏洞_安全|系统漏洞_IoT|APP漏洞_移动|工控漏洞</title>
+    <title>%s %s</title>
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/base.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/loopSetting.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/ele.css">
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/ele-common.css">
-    <script type="text/javascript" src="https://www.butian.net/Public/js/jquery.min.js"></script>
-    <script type="text/javascript" src="https://www.butian.net/Public/js/plugins.js"></script>
     <style>
         .loginSeting p {
             clear: both;
@@ -134,18 +139,11 @@ def main():
     <link rel="stylesheet" type="text/css" href="https://www.butian.net/Public/css/plugins.css">
 </head>
 <body class="lotteryWrap">
-                ''')
+                ''' % (number, title))
 
                 f.write(pageDetail_content)
                 f.write('''
 </body>
-<script type="text/javascript">
-  $(function () {
-    //漏洞详情解析
-    var str_detail = $('#detail').html() || '';
-    $('#detail').html(tools.toHtml(str_detail));
-    });
-</script>
 </html>
                 ''')
 
