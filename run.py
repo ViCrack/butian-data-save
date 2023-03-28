@@ -22,10 +22,12 @@ from requests.adapters import HTTPAdapter
 user_agent = ''
 save_path = r''
 
+
 headers = {
     'User-Agent': user_agent,
     'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.7,zh-HK;q=0.5,en-US;q=0.3,en;q=0.2',
     'Accept-Encoding': 'gzip, deflate, br',
+    'Referer': 'https://www.butian.net/'
 }
 req = requests.Session()
 req.headers = headers
@@ -66,33 +68,35 @@ def main():
 
         current_page += 1
         total_page = int((loo_list['data']['count'] - 1) / 10 + 1)
-
+        finished = False
         for loo in loo_list['data']['list']:
             create_date = loo['create_time'][:10]
             title = loo['title']
             number = loo['number']
+            company_name = loo['company_name']
             file_path = Path(f'{save_path}/{create_date}/{number} {title}.html')
             if file_path.exists():
-                html = file_path.read_text(encoding='utf-8')
-                if '<p>补天审核中</p>' not in html and '</html>' in html:
+                html_content = file_path.read_text(encoding='utf-8')
+                if '<p>补天审核中</p>' not in html_content and '</html>' in html_content:
                     # 已经处理保存过了，不需要重复运行
                     break
             loo_url = f'https://www.butian.net/Loo/detail/{number}.html'
-            html = req.get(loo_url).text
-            if '详情隐藏' in html:
-                print('已经被隐藏了')
+            html_content = req.get(loo_url).text
+            if '详情隐藏' in html_content:
+                print(f'{create_date} {title} 已经被隐藏了')
                 # 直接结束就行，因为按时间来算，后面的都是隐藏
-                return
+                finished = True
+                break
             time.sleep(0.5)
             if loo['status'] == '审核不通过':
                 # 把不通过的原因写上，免得到时候去翻
-                html = html.replace('<p>审核不通过</p>', f'<p>审核不通过({loo["assessor"]})</p>{loo["reason"]}')
+                html_content = html_content.replace('<p>审核不通过</p>', f'<p>审核不通过({loo["assessor"]})</p>{loo["reason"]}')
 
             print(file_path)
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # 精简内容，节省磁盘空间，大概能看就能行，又不是不能看
-            doc = PyQuery(html)
+            doc = PyQuery(html_content)
             pageDetail = doc('#pageDetail')
             pageDetail.find('.loopDetTitle').find('span').attr('onclick', f'window.open("{loo_url}")')
             pageDetail.find('.loopEdit').remove()
@@ -101,8 +105,12 @@ def main():
             liuyan.parent().prev().remove()
             liuyan.parent().remove()
             # 漏洞详情解析
-            pageDetail.find('#detail').html(pageDetail.find('#detail').html())
-            pageDetail_content = re.sub(r'<em class="(.*?)"/>', r'<em class="\1"></em>', str(pageDetail))
+            # detail_content = pageDetail.find('#detail').html()
+            detail_content = re.search(r'<div id="detail">(.*?)</div>', html_content, re.DOTALL).group(1)
+            detail_content = html.unescape(detail_content)
+
+            pageDetail.find('#detail').html(detail_content)
+            pageDetail_content = re.sub(r'<em class="(.*?)"/>', r'<em class="\1"></em>', str(pageDetail)).replace('&#13;', '')
             # 也许应该把图片下载下来，谁知道会不会把这也屏蔽了
             with file_path.open(mode='w', encoding='utf-8') as f:
                 f.write('''
@@ -146,7 +154,8 @@ def main():
 </body>
 </html>
                 ''')
-
+        if finished:
+            break
     print('运行结束')
 
 
